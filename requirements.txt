@@ -1,0 +1,3 @@
+maritalk
+python-dotenv
+tiktoken
