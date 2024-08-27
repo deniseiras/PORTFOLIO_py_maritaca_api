@@ -12,6 +12,7 @@ import maritalk
 import dotenv
 import os
 import tiktoken
+from maritalk.resources.api import MaritalkHTTPError
 
 model_instances = {}
 
@@ -20,7 +21,6 @@ def get_maritalk_instance(model_name):
         gets an model instance and sets the maritacaai key using environment variable MARITACAAI_API_KEY inside.env file
     """
     if len(model_instances) == 0:
-        del os.environ['MARITACAAI_API_KEY']
         # load the MARITACAAI_API_KEY in .env file
         dotenv.load_dotenv()
         
@@ -36,7 +36,7 @@ def get_maritalk_instance(model_name):
     return model_instances[model_name]
         
 
-def get_completion(prompt_user, prompt_system=None, model_name="sabia-2-small", temperature=0):
+def get_completion(prompt_user, prompt_system=None, model_name="sabia-2-small", temperature=0, max_tokens=4096):
     """
         get models response using MaritacaAI API
 
@@ -52,14 +52,13 @@ def get_completion(prompt_user, prompt_system=None, model_name="sabia-2-small", 
         - 'maritacaai_exception' will be raised when there is an exception
 
         Whether your API call works at all, as total tokens must be below the model’s maximum limit:
-        Sabiá-3        - In/Out Tokens = R$ 0,00001 por tokens  (R$10 / 1M tokens)
-        Sabiá-2 Medium - Input Tokens  = R$ 0,000005 por token  (R$5  / 1M tokens)
+        Sabiá-3        - In/Out Tokens = R$ 0,00001 por tokens  (R$10 / 1M tokens) max_tokens = 32000
+        Sabiá-2 Medium - Input Tokens  = R$ 0,000005 por token  (R$5  / 1M tokens) max_tokens = 8192
                        - Output Tokens = R$ 0,000015 por tokens (R$15 / 1M tokens)
-        Sabiá-2 Small  - Input Tokens  = R$ 0,000001 por token  (R$1  / 1M tokens)
+        Sabiá-2 Small  - Input Tokens  = R$ 0,000001 por token  (R$1  / 1M tokens) max_tokens = 8192
                        - Output Tokens = R$ 0,000003 por token  (R$1  / 1M tokens)
 
     """
-        
     
     mssgs = [{"role": "user", "content": prompt_user}]
     if prompt_system:
@@ -67,16 +66,21 @@ def get_completion(prompt_user, prompt_system=None, model_name="sabia-2-small", 
     try:
 
         model = get_maritalk_instance(model_name)
-        response = model.generate(mssgs, temperature=temperature)
+        response = model.generate(mssgs, temperature=temperature, max_tokens=max_tokens)
         ret_message = response["answer"]
         
         ret_fin_reason = 'stop'
         # ret_fin_reason = response.finish_reason ??
         prompt_tokens = response["usage"]['prompt_tokens']
         compl_tokens = response["usage"]['completion_tokens']
-        
-    except Exception as e:
+
+    except MaritalkHTTPError as e:    
         ret_message = e.message
+        ret_fin_reason = 'maritacaai_exception'
+        prompt_tokens = 0
+        compl_tokens = 0
+    except Exception as e:
+        ret_message = e
         ret_fin_reason = 'maritacaai_exception'
         prompt_tokens = 0
         compl_tokens = 0
