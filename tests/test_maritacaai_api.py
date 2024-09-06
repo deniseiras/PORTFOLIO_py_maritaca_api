@@ -35,6 +35,14 @@ class TestGetCompletion(unittest.TestCase):
         self.assertEqual(response[:48], 'Sorry, we do not support the model you requested')
         self.assertEqual(err, 'maritacaai_exception')
 
+    def test_get_completion_with_more_than_max_tokens(self):
+        prompt = "Escreva uma estória com 20 palavras."
+        # Max tokens sabia-2 = 8192, so it passes the limit
+        response, err = get_completion(prompt, max_tokens=8192)
+        self.assertEqual(response, 'The messages submitted occupy 78 tokens. You asked to generate a maximum of 8192, with 8270 in total. ' + \
+            'The maximum supported is 8192 tokens. If you want to generate as many tokens as possible, please do not specify the max_tokens parameter')
+        self.assertEqual(err, 'maritacaai_exception')
+
 
 if __name__ == '__main__':
     unittest.main()
